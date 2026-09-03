@@ -1,11 +1,6 @@
-import discord
-from discord.ext import tasks
-import requests
-import datetime
-import pytz
-import feedparser
-import random
-
-# Kích hoạt static_ffmpeg để tự động cung cấp bộ giải mã âm thanh
-import static_ffmpeg
-static_ffmpeg.add_paths()
+discord.py
+requests
+pytz
+feedparser
+static-ffmpeg
+flask
