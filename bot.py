@@ -4,7 +4,9 @@ import requests
 import datetime
 import pytz
 import feedparser
-import random
+import os
+from flask import Flask
+from threading import Thread
 
 # Kích hoạt static_ffmpeg để tự động cung cấp bộ giải mã âm thanh
 import static_ffmpeg
@@ -19,17 +21,18 @@ intents.voice_states = True  # Bật quyền quản lý Voice Channel
 client = discord.Client(intents=intents)
 
 # ================= CẤU HÌNH THÔNG TIN BOT =================
-TOKEN = 'MTU0NDE4ODMyNjExMjc4ODQ4MA.GvZRxH.RHL2jFawQet41Ug2IL3E6b2jr9WbmFuU_c5uDc'
-WEATHER_API_KEY = '89c841ee5f0d489da7011513260309' # WeatherAPI key của bạn
+# Lấy token từ biến môi trường trên Render để bảo mật tuyệt đối
+TOKEN = os.getenv("DISCORD_TOKEN")
+WEATHER_API_KEY = '89c841ee5f0d489da7011513260309' 
 
 # Thay ID các kênh nhận thông báo tự động của bạn vào đây:
-WEATHER_CHANNEL_ID = 1544645144647831644  # ID kênh nhận tin THỜI TIẾT tự động
-NEWS_CHANNEL_ID = 1544886207547187210     # ID kênh nhận tin TỨC tự động
+WEATHER_CHANNEL_ID = 1544645144647831644  
+NEWS_CHANNEL_ID = 1544886207547187210     
 # ========================================================
 
 TIMEZONE = pytz.timezone('Asia/Ho_Chi_Minh')
 
-# Danh sách 3 bài hát của bạn
+# Danh sách 3 bài hát của bạn (đảm bảo các file MP3 này nằm cùng thư mục trên GitHub)
 PLAYLIST = [
     {"file": "amthambenem.mp3", "name": "Âm Thầm Bên Em - Sơn Tùng M-TP"},
     {"file": "biw.mp3", "name": "Beautiful In White - Shane Filan"},
@@ -43,6 +46,21 @@ report_times = [
     datetime.time(hour=15, minute=0, tzinfo=TIMEZONE),
     datetime.time(hour=19, minute=0, tzinfo=TIMEZONE)
 ]
+
+# --- TẠO WEB SERVER ĐỂ CHỐNG NGỦ ĐÔNG TRÊN RENDER ---
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Bot is alive and running 24/7!"
+
+def run_flask():
+    app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    t = Thread(target=run_flask)
+    t.start()
+# ---------------------------------------------------
 
 def get_weather_data(location="Hanoi"):
     """Hàm lấy dữ liệu thời tiết từ WeatherAPI.com"""
@@ -163,18 +181,15 @@ async def on_message(message):
             if voice_client.is_playing():
                 voice_client.stop()
 
-            # Biến lưu chỉ số bài hát hiện tại (bắt đầu từ bài 0)
             current_index = [0]
 
             def play_next(error):
                 if error:
                     print(f"Lỗi phát nhạc: {error}")
                 
-                # Kiểm tra nếu bot vẫn đang ở trong voice channel
                 if not voice_client.is_connected():
                     return
 
-                # Chuyển sang bài tiếp theo (quay vòng từ 0 -> 1 -> 2 -> 0...)
                 current_index[0] = (current_index[0] + 1) % len(PLAYLIST)
                 next_song = PLAYLIST[current_index[0]]
 
@@ -185,7 +200,6 @@ async def on_message(message):
                 except Exception as e:
                     print(f"Không thể phát bài tiếp theo: {e}")
 
-            # Phát bài đầu tiên ngay khi nhận lệnh
             first_song = PLAYLIST[0]
             source = discord.FFmpegPCMAudio(first_song["file"])
             voice_client.play(source, after=play_next)
@@ -203,4 +217,10 @@ async def on_message(message):
         else:
             await message.channel.send("⚠️ Bot không ở trong kênh thoại nào cả!")
 
-client.run(TOKEN)
+# Khởi chạy Flask server ngầm trước, sau đó chạy Bot Discord
+if __name__ == "__main__":
+    keep_alive()
+    if TOKEN:
+        client.run(TOKEN)
+    else:
+        print("⚠️ LỖI: Chưa cấu hình biến môi trường DISCORD_TOKEN trên Render!")
