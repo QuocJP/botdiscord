@@ -1,1 +1,1 @@
-# botdiscord
+# botdiscord by QuocJP
