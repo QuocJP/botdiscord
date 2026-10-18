@@ -8,7 +8,7 @@ import os
 from flask import Flask
 from threading import Thread
 
-# Kích hoạt static_ffmpeg để tự động cung cấp bộ giải mã âm thanh
+
 import static_ffmpeg
 static_ffmpeg.add_paths()
 
@@ -16,19 +16,17 @@ intents = discord.Intents.default()
 intents.guilds = True
 intents.messages = True
 intents.message_content = True
-intents.voice_states = True  # Bật quyền quản lý Voice Channel
+intents.voice_states = True 
 
 client = discord.Client(intents=intents)
 
-# ================= CẤU HÌNH THÔNG TIN BOT =================
-# Lấy token từ biến môi trường trên Render để bảo mật tuyệt đối
 TOKEN = os.getenv("DISCORD_TOKEN")
 WEATHER_API_KEY = '89c841ee5f0d489da7011513260309' 
 
-# Thay ID các kênh nhận thông báo tự động của bạn vào đây:
+
 WEATHER_CHANNEL_ID = 1544645144647831644  
 NEWS_CHANNEL_ID = 1544886207547187210     
-# ========================================================
+
 
 TIMEZONE = pytz.timezone('Asia/Ho_Chi_Minh')
 
@@ -47,7 +45,7 @@ report_times = [
     datetime.time(hour=19, minute=0, tzinfo=TIMEZONE)
 ]
 
-# --- TẠO WEB SERVER ĐỂ CHỐNG NGỦ ĐÔNG TRÊN RENDER ---
+
 app = Flask('')
 
 @app.route('/')
