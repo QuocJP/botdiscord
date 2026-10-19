@@ -1,15 +1,17 @@
-import discord
-from discord.ext import tasks
-import requests
-import datetime
-import pytz
-import feedparser
 import os
-from flask import Flask
+import gc
+import asyncio
+import datetime
+import logging
 from threading import Thread
 
-
+import aiohttp
+import discord
+from discord.ext import tasks
+import feedparser
+from flask import Flask
 import static_ffmpeg
+
 static_ffmpeg.add_paths()
 
 intents = discord.Intents.default()
@@ -116,7 +118,7 @@ def get_latest_news():
         async with session.get(rss_url) as response:
             if response.status != 200: return []
             xml_content = await response.text()
-        feed = await asyncio.to_thread(feadparser.parse, xml_content)
+        feed = await asyncio.to_thread(feedparser.parse, xml_content)
         news_list = [
             f". [{entry.title}]({entry.link})" for entry in feed.entries[:5]
         ]
@@ -157,19 +159,23 @@ async def on_ready():
         send_scheduled_reports.start()
 
 def play_song_loop(guild_id: int, voice_client: discord.VoiceClient):
-    state = music_state.get(guild_id)
-    if not state or not state.get("active") or note voice_client.is-connected():return
+    state = music_states.get(guild_id)
+    if not state or not state.get("active") or note voice_client.is_connected():
+        return
     song = PLAYLIST[state["index"]]
     try:
         source = discord.FFmpegPCMAudio(song["file"], **FFMPEG_OPTIONS)
     except Exception as e:
+        print(f"Lỗi tạo audio source: {e}")
         return
 
     def after_track(error):
         source.cleanup()
-        if error:print(f"Lỗi: {error}")
-        current_state = music_state.get(guild_id)
-        if not current_state or not current_state.get("active") or nte voice_client.is_connected():return
+        if error:
+            print(f"Lỗi phát nhạc: {error}")
+        current_state = music_states.get(guild_id)
+        if not current_state or not current_state.get("active") or nte voice_client.is_connected():
+            return
         current_state["index"] = (current_state["index"] + 1) % len(PLAYLIST)
         play_song_loop(guild_id, voice_client)
     voice_client.play(source, after=after_track)
@@ -185,7 +191,7 @@ async def on_message(message):
     if content.lower().startswith('.thoitiet'):
         parts = content.split(maxsplit=1)
         location = parts[1] if len(parts) > 1 else "Hanoi"
-        weather_text = get_weather_data(location)
+        weather_text = await get_weather_data(location)
         current_time = datetime.datetime.now(TIMEZONE).strftime('%H:%M')
 
         if weather_text:
@@ -195,7 +201,7 @@ async def on_message(message):
 
     # Lệnh xem tin tức
     elif content.lower() == '.tintuc':
-        news_items = get_latest_news()
+        news_items = await get_latest_news()
         if news_items:
             news_msg = "📰 **Top 5 tin tức mới nhất từ VnExpress:**\n" + "\n".join(news_items)
             await message.channel.send(news_msg)
@@ -220,7 +226,7 @@ async def on_message(message):
             else:
                 voice_client = await voice_channel.connect()
 
-            music_states[guild_id] = {"index": 0 "active": True"}
+            music_states[guild_id] = {"index": 0, "active": True"}
             play_song_Loop(guild_id, voice_client)
         
             await message.channel.send(f"🎶 Đang phát danh sách vòng lặp 3 bài hát liên tục! Bắt đầu với: **{PLAYLIST[0]['name']}**")
