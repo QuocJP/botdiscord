@@ -1,6 +1,4 @@
-discord.py
-requests
-pytz
+discord.py[voice]
 feedparser
 static-ffmpeg
 flask
