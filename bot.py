@@ -61,7 +61,6 @@ http_session: aiohttp.ClientSession | None = None
 music_states = {}
 
 app = Flask('')
-import logging
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
@@ -89,16 +88,17 @@ async def get_weather_data(location="Hanoi"):
         session = await get_http_session()
         url = "https://api.weatherapi.com/v1/current.json"
         params = {"key": WEATHER_API_KEY, "q": location, "lang": "vi"}
-     
-        if response.status_code == 200:
-            data = await response.json()
-            city = data["location"]["name"]
-            country = data["location"]["country"]
-            temp = data["current"]["temp_c"]
-            feels_like = data["current"]["feelslike_c"]
-            condition = data["current"]["condition"]["text"]
-            humidity = data["current"]["humidity"]
-            wind_speed = data["current"]["wind_kph"]
+
+        async with session.get(url, params=params) as response:
+            if response.status_code == 200:
+                data = await response.json()
+                city = data["location"]["name"]
+                country = data["location"]["country"]
+                temp = data["current"]["temp_c"]
+                feels_like = data["current"]["feelslike_c"]
+                condition = data["current"]["condition"]["text"]
+                humidity = data["current"]["humidity"]
+                wind_speed = data["current"]["wind_kph"]
             
             return (
                 f"📍 **Khu vực:** {city}, {country}\n"
@@ -111,7 +111,7 @@ async def get_weather_data(location="Hanoi"):
         print(f"Lỗi kết nối WeatherAPI: {e}")
     return None
 
-def get_latest_news():
+async def get_latest_news():
     try:
         session = await get_http_session()
         rss_url = "https://vnexpress.net/rss/tin-moi-nhat.rss"
@@ -160,7 +160,7 @@ async def on_ready():
 
 def play_song_loop(guild_id: int, voice_client: discord.VoiceClient):
     state = music_states.get(guild_id)
-    if not state or not state.get("active") or note voice_client.is_connected():
+    if not state or not state.get("active") or not voice_client.is_connected():
         return
     song = PLAYLIST[state["index"]]
     try:
@@ -174,7 +174,7 @@ def play_song_loop(guild_id: int, voice_client: discord.VoiceClient):
         if error:
             print(f"Lỗi phát nhạc: {error}")
         current_state = music_states.get(guild_id)
-        if not current_state or not current_state.get("active") or nte voice_client.is_connected():
+        if not current_state or not current_state.get("active") or not voice_client.is_connected():
             return
         current_state["index"] = (current_state["index"] + 1) % len(PLAYLIST)
         play_song_loop(guild_id, voice_client)
@@ -226,8 +226,8 @@ async def on_message(message):
             else:
                 voice_client = await voice_channel.connect()
 
-            music_states[guild_id] = {"index": 0, "active": True"}
-            play_song_Loop(guild_id, voice_client)
+            music_states[guild_id] = {"index": 0, "active": True}
+            play_song_loop(guild_id, voice_client)
         
             await message.channel.send(f"🎶 Đang phát danh sách vòng lặp 3 bài hát liên tục! Bắt đầu với: **{PLAYLIST[0]['name']}**")
         except Exception as e:
