@@ -54,6 +54,9 @@ report_times = [
     datetime.time(hour=19, minute=0, tzinfo=TIMEZONE)
 ]
 
+http_session: aiohttp.ClientSession | None = None
+
+music_states = {}
 
 app = Flask('')
 import logging
@@ -72,8 +75,6 @@ def keep_alive():
     t = Thread(target=run_flask)
     t.start()
 # ---------------------------------------------------
-
-http_session = None
 
 async def get_http_session():
     global http_session
@@ -116,7 +117,10 @@ def get_latest_news():
             if response.status != 200: return []
             xml_content = await response.text()
         feed = await asyncio.to_thread(feadparser.parse, xml_content)
-        news_list = [f". [{entry.title}]({entry.link})" for entry in feed.entries[:5]]
+        news_list = [
+            f". [{entry.title}]({entry.link})" for entry in feed.entries[:5]
+        ]
+        
         del feed, xml_content
         gc.collect()
         return news_list
@@ -151,6 +155,24 @@ async def on_ready():
     print(f'Bot đã đăng nhập thành công với tên {client.user}')
     if not send_scheduled_reports.is_running():
         send_scheduled_reports.start()
+
+def play_song_loop(guild_id: int, voice_client: discord.VoiceClient):
+    state = music_state.get(guild_id)
+    if not state or not state.get("active") or note voice_client.is-connected():return
+    song = PLAYLIST[state["index"]]
+    try:
+        source = discord.FFmpegPCMAudio(song["file"], **FFMPEG_OPTIONS)
+    except Exception as e:
+        return
+
+    def after_track(error):
+        source.cleanup()
+        if error:print(f"Lỗi: {error}")
+        current_state = music_state.get(guild_id)
+        if not current_state or not current_state.get("active") or nte voice_client.is_connected():return
+        current_state["index"] = (current_state["index"] + 1) % len(PLAYLIST)
+        play_song_loop(guild_id, voice_client)
+    voice_client.play(source, after=after_track)
 
 @client.event
 async def on_message(message):
@@ -187,50 +209,32 @@ async def on_message(message):
             return
 
         voice_channel = message.author.voice.channel
+        guild_id = message.guild.id
         
         try:
             voice_client = message.guild.voice_client
             if voice_client is not None:
-                if voice_client.channel != voice_channel:
-                    await voice_client.move_to(voice_channel)
+                if guild_id in music_states: music_states[guild_id]["active"] = False
+                if voice_client.is_playing(): voice_client.stop()
+                if voice_client.channel != voice_channel: await voice_client.move_to(voice_channel)
             else:
                 voice_client = await voice_channel.connect()
 
-            if voice_client.is_playing():
-                voice_client.stop()
-
-            current_index = [0]
-
-            def play_next(error):
-                if error:
-                    print(f"Lỗi phát nhạc: {error}")
-                
-                if not voice_client.is_connected():
-                    return
-
-                current_index[0] = (current_index[0] + 1) % len(PLAYLIST)
-                next_song = PLAYLIST[current_index[0]]
-
-                try:
-                    next_source = discord.FFmpegPCMAudio(next_song["file"])
-                    voice_client.play(next_source, after=play_next)
-                    print(f"Đang tự động chuyển sang bài: {next_song['name']}")
-                except Exception as e:
-                    print(f"Không thể phát bài tiếp theo: {e}")
-
-            first_song = PLAYLIST[0]
-            source = discord.FFmpegPCMAudio(first_song["file"])
-            voice_client.play(source, after=play_next)
-
-            await message.channel.send(f"🎶 Đang phát danh sách vòng lặp 3 bài hát liên tục! Bắt đầu với: **{first_song['name']}**")
-            
+            music_states[guild_id] = {"index": 0 "active": True"}
+            play_song_Loop(guild_id, voice_client)
+        
+            await message.channel.send(f"🎶 Đang phát danh sách vòng lặp 3 bài hát liên tục! Bắt đầu với: **{PLAYLIST[0]['name']}**")
         except Exception as e:
             await message.channel.send(f"⚠️ Không thể phát nhạc: {e}")
 
     # Lệnh dừng phát nhạc và rời voice
     elif content.lower() == '.dungnhac':
         if message.guild.voice_client:
+            guild_id = message.guild.id
+            if guild_id in music_states: music_states[guild_id]["active"] = False
+            message.guild.voice_client.stop()
             await message.guild.voice_client.disconnect()
+            gc.collect()
             await message.channel.send("⏹️ Đã dừng phát nhạc và rời khỏi kênh thoại!")
         else:
             await message.channel.send("⚠️ Bot không ở trong kênh thoại nào cả!")
@@ -239,6 +243,6 @@ async def on_message(message):
 if __name__ == "__main__":
     keep_alive()
     if TOKEN:
-        client.run(TOKEN)
+        client.run(TOKEN, log_handler=None)
     else:
         print("⚠️ LỖI: Chưa cấu hình biến môi trường DISCORD_TOKEN trên Render!")
