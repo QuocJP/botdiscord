@@ -90,7 +90,7 @@ async def get_weather_data(location="Hanoi"):
         params = {"key": WEATHER_API_KEY, "q": location, "lang": "vi"}
 
         async with session.get(url, params=params) as response:
-            if response.status_code == 200:
+            if response.status == 200:
                 data = await response.json()
                 city = data["location"]["name"]
                 country = data["location"]["country"]
@@ -100,12 +100,12 @@ async def get_weather_data(location="Hanoi"):
                 humidity = data["current"]["humidity"]
                 wind_speed = data["current"]["wind_kph"]
             
-            return (
-                f"📍 **Khu vực:** {city}, {country}\n"
-                f"🌡️ **Nhiệt độ:** {temp}°C (Cảm giác như: {feels_like}°C)\n"
-                f"🌤️ **Tình trạng:** {condition}\n"
-                f"💧 **Độ ẩm:** {humidity}%\n"
-                f"🌬️ **Gió:** {wind_speed} km/h"
+                return (
+                    f"📍 **Khu vực:** {city}, {country}\n"
+                    f"🌡️ **Nhiệt độ:** {temp}°C (Cảm giác như: {feels_like}°C)\n"
+                    f"🌤️ **Tình trạng:** {condition}\n"
+                    f"💧 **Độ ẩm:** {humidity}%\n"
+                    f"🌬️ **Gió:** {wind_speed} km/h"
             )
     except Exception as e:
         print(f"Lỗi kết nối WeatherAPI: {e}")
