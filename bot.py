@@ -18,7 +18,12 @@ intents.messages = True
 intents.message_content = True
 intents.voice_states = True 
 
-client = discord.Client(intents=intents)
+client = discord.Client(
+    intents=intents,
+    max_messages=None,
+    member_cache_flags=discord.MemberCacheFlags.none(),
+    chunk_guilds_at_startup=False
+)
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 WEATHER_API_KEY = '89c841ee5f0d489da7011513260309' 
@@ -27,8 +32,8 @@ WEATHER_API_KEY = '89c841ee5f0d489da7011513260309'
 WEATHER_CHANNEL_ID = 1544645144647831644  
 NEWS_CHANNEL_ID = 1544886207547187210     
 
-
-TIMEZONE = pytz.timezone('Asia/Ho_Chi_Minh')
+#Thư viện datetime để lấy giờ chuẩn
+TIMEZONE = datetime.timezone(datetime.timedelta(hours=7))
 
 # Danh sách 3 bài hát của bạn (đảm bảo các file MP3 này nằm cùng thư mục trên GitHub)
 PLAYLIST = [
